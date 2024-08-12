@@ -6,10 +6,10 @@ const puppeteer = require('puppeteer');
 const urlocator = require('url');
 const path = require('path');
 const { transferableAbortController } = require("util");
-const findLyricfromWebsite1 = require('./src/website1');
-const findLyricfromWebsite2 = require('./src/website2')
+const findLyricfromWebsite1 = require('./website1');
+const findLyricfromWebsite2 = require('./website2')
 const channelID = process.env.CHANNELID;
-
+const { sendMessage } = require('./sendMessage');
 
 let accessToken = null;
 let refreshToken = null;
@@ -28,7 +28,7 @@ client.login(process.env.DISCORDBOTTOKEN);
 client.on('messageCreate', async (msg) => {
     try {
         const prefix = '!';
-        
+
         if (msg.content.startsWith(prefix) && msg.channelId === channelID && msg.content.toUpperCase() === '!LYR') {
             // if (refreshToken === null) {
             //     console.log('Getting authorisation code');
@@ -81,13 +81,19 @@ client.on('messageCreate', async (msg) => {
             // const lyrics = await createBrowser('虹 ', 'Masaki Suda');
             // const lyrics = await createBrowser('惑う糸', 'Masaki Suda');
             // const lyrics = await createBrowser('MAKAFUKA', 'RADWIMPS');
+            // const lyrics = await createBrowser('Thunder Blossom', 'MAISONdes');
 
             // const lyrics = await createBrowser('ドライフラワー', 'Yuuri');
+            // if (lyrics.hasOwnProperty('translation')) {
+            //     msg.channel.send('No Romanized or Translation Available');
+            // }
+
             // const lyrics = await createBrowser('Lemon', 'Kenshi Yonezu');
-            const lyrics = await createBrowser('ロングホープ・フィリア', 'Masaki Suda');
-
-
-            console.log(lyrics);
+            // const lyrics = await createBrowser('ロングホープ・フィリア', 'Masaki Suda');
+            await sendMessage(msg.channel, 'ドライフラワー', 'Yuuri', 'dummy');
+            // await sendMessage(msg.channel, { songName: trackName, artist: artistName, lyrics });
+            // msg.channel.send({ embeds: [EmbedMsg] })
+            // console.log(lyrics);
 
         }
     } catch (error) {
@@ -110,34 +116,33 @@ const createBrowser = async (trackName, artistName) => {
         ],
     });
 
-    const page = await browser.newPage();
-    lyrics = await findLyricfromWebsite1(page, trackName, artistName);
+    try {
+        const page = await browser.newPage();
+        lyrics = await findLyricfromWebsite1(page, trackName, artistName);
+        // lyrics = { translation: false };
 
-    // if (lyrics.hasOwnProperty('translation')) {
-    //     lyrics = await findLyricfromWebsite2(page, lyrics, trackName, artistName, 'ROMAJI&ENG');
-    //     // lyrics = await findLyricfromWebsite2(page, lyrics, '惑う糸', 'Masaki Suda', 'ROMAJI&ENG');
+        if (lyrics.hasOwnProperty('romaji_eng')) {
+            return lyrics;
+        }
 
-    // }
-    // else if (!lyrics.hasOwnProperty('romaji_eng')) {
-    //     if (lyrics.hasOwnProperty('romaji')) {
-    //         lyrics = await findLyricfromWebsite2(page, lyrics, trackName, artistName, 'ENGLISH');
-    //         // lyrics = await findLyricfromWebsite2(page, lyrics, '惑う糸', 'Masaki Suda', 'ENGLISH');
-    //     }
-    //     else if (lyrics.hasOwnProperty('english')) {
-    //         lyrics = await findLyricfromWebsite2(page, lyrics, trackName, artistName, 'ROMAJI');
-    //         // lyrics = await findLyricfromWebsite2(page, lyrics, '惑う糸', 'Masaki Suda', 'ROMAJI');
-    //     }
-    //     else {
-    //         lyrics = null;
-    //     }
-    // }
-    browser.close();
-    // lyrics = await findLyricfromWebsite2(page, lyrics, '惑う糸', 'Masaki Suda', 'ROMAJI&ENG');
-    // lyrics = await findLyricfromWebsite2(page, lyrics, 'Thunder Blossom', 'MAISONdes', 'ROMAJI&ENG');
-    return lyrics;
+        lyricsFromWeb2 = await findLyricfromWebsite2(page, trackName, artistName);
+
+        if (lyricsFromWeb2.hasOwnProperty('romaji_eng') || lyricsFromWeb2.hasOwnProperty('romaji')) {
+            console.log('Returning From Website 2');
+            return lyricsFromWeb2;
+        }
+
+        return lyrics;
+
+    } catch (error) {
+        console.error('Error fetching lyrics:', error);
+        return lyrics;
+
+    } finally {
+        browser.close();
+    }
+
 }
-
-
 
 
 //check on how to validate the webpage to prevent the code stuck in this function, add reject promise, as now it will only return when the code the code is found

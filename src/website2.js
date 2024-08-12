@@ -5,17 +5,17 @@ const reformatLyricContentWebsite2 = (content, type) => {
     // if (type === 'ROMAJI&ENG') {
     //     paraContent.map()
     // }
-
-    return paraContent;
+    const lyrics = paraContent.map((line) => {
+        return line.replaceAll('<br>', '.');
+    })
+    return lyrics;
 }
 
 const getLyricsfromWebsite2 = async (page, lyrics, type) => {
     // 'ROMAJI&ENG'
-    // 'ENGLISH'
-    // 'ROMAJI'
-    let newLyrics = { ...lyrics };
 
-    const selector = (type === 'ROMAJI&(ENG)' || type === 'ENGLISH') ? '#English .olyrictext' : '#Romaji #prilyr';
+    let newLyrics = { ...lyrics };
+    const selector = (type === 'ROMAJI&(ENG)' || type === 'ENGLISH') ? '#EnglishOff,#English .olyrictext' : '#Romaji #PriLyr';
 
     await page.waitForSelector(selector);
     const lyricsContent = await page.evaluate((selector) => {
@@ -71,69 +71,13 @@ const getLyricsfromWebsite2 = async (page, lyrics, type) => {
         }
     }
 
-    else if (type === 'ROMAJI') {
-        const english = newLyrics.english;
-        if (english.length < refinedLyr) {
-            const finalRefinedLyr = refinedLyr.map((value, index) => {
-                return {
-                    paragraph: index + 1,
-                    romaji: value,
-                    english: english[index].english,
-
-                }
-            });
-            return { romaji_eng: finalRefinedLyr };
-        }
-
-        else {
-            const finalRefinedLyr = english.map((value, index) => {
-                return {
-                    paragraph: index + 1,
-                    romaji: refinedLyr[index],
-                    english: value.english,
-
-                }
-            });
-            return { romaji_eng: finalRefinedLyr };
-        }
-
-    }
-
-    else if (type === 'ENGLISH') {
-        const romaji = newLyrics.romaji;
-
-        if (romaji.length < refinedLyr) {
-            const finalRefinedLyr = refinedLyr.map((value, index) => {
-                return {
-                    paragraph: index + 1,
-                    romaji: romaji[index].romaji,
-                    english: value,
-
-                }
-            });
-            return { romaji_eng: finalRefinedLyr };
-        }
-
-        else {
-            const finalRefinedLyr = romaji.map((value, index) => {
-                return {
-                    paragraph: index + 1,
-                    romaji: value.romaji,
-                    english: refinedLyr[index],
-
-                }
-            });
-            return { romaji_eng: finalRefinedLyr };
-        }
-    }
-
     return { newLyrics };
 
 }
 
-const findLyricfromWebsite2 = async (page, lyrics, trackName, artistName, type) => {
+const findLyricfromWebsite2 = async (page, trackName, artistName) => {
 
-    let newLyrics = { ...lyrics };
+    let newLyrics = {};
     page.goto(process.env.LYRICSWEBSITE2, { timeout: 60000 });
     await page.waitForSelector('#gsc-i-id1');
     await page.type('#gsc-i-id1', `${trackName} ${artistName}`, { delay: 50 });
@@ -160,28 +104,14 @@ const findLyricfromWebsite2 = async (page, lyrics, trackName, artistName, type) 
         return element ? element : null;
     })
 
-    if (type === 'ROMAJI&ENG') {
-        newLyrics = await getLyricsfromWebsite2(page, newLyrics, '(ROMAJI)&ENG');
 
-        if (isTranslationAvailable === null) {
-            return newLyrics;
-        }
-        await page.click('a[href="#Translations"]');
-        await page.waitForSelector('#English .olyrictext');
-        newLyrics = await getLyricsfromWebsite2(page, newLyrics, 'ROMAJI&(ENG)');
+    newLyrics = await getLyricsfromWebsite2(page, newLyrics, '(ROMAJI)&ENG');
 
+    if (isTranslationAvailable === null) {
+        return newLyrics;
     }
-    else if (type === 'ROMAJI') {
-        newLyrics = await getLyricsfromWebsite2(page, newLyrics, type);
-    }
-
-    else if (type === 'ENGLISH') {
-        if (!isTranslationAvailable) {
-            return newLyrics;
-        }
-        newLyrics = await getLyricsfromWebsite2(page, newLyrics, type);
-    }
-    //check what language available
+    await page.click('a[href="#Translations"]');
+    newLyrics = await getLyricsfromWebsite2(page, newLyrics, 'ROMAJI&(ENG)');
 
     return newLyrics;
 
